@@ -1,0 +1,52 @@
+name: Build P-12 Mac Silicon DMG
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify P-12 source
+        shell: bash
+        run: |
+          test -f P-12.html || {
+            echo "::error::P-12.html is missing from the repository root."
+            exit 1
+          }
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Apple Silicon DMG
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npm run dist:mac:arm64
+
+      - name: Show output
+        run: find dist-mac-arm64 -maxdepth 2 -type f -print
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: P-12-Mac-Silicon-DMG
+          path: |
+            dist-mac-arm64/*.dmg
+            dist-mac-arm64/*.zip
+          if-no-files-found: error
+          retention-days: 30
