@@ -1,0 +1,5 @@
+P-12.html must be placed at the repository root.
+
+This repository is configured to build it as an Apple Silicon arm64 .app/.dmg with no native VST host dependency.
+
+Do not replace P-12.html with an older build: use the current P-12 v1.0 source containing Tune BF, SP12/HFE export, swing and Time Correct input-only changes.
