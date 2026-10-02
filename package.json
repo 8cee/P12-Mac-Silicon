@@ -1,0 +1,39 @@
+{
+  "name": "p12-mac-silicon",
+  "version": "1.0.0",
+  "private": true,
+  "description": "P-12 v1.0 for Apple Silicon macOS, without native VST hosting",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist:mac:arm64": "electron-builder --mac dmg zip --arm64 --config.directories.output=dist-mac-arm64"
+  },
+  "devDependencies": {
+    "electron": "44.2.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.p12.sampler.silicon",
+    "productName": "P-12 v1.0",
+    "files": [
+      "P-12.html",
+      "main.js"
+    ],
+    "artifactName": "P-12-v1.0-Mac-Silicon-${arch}.${ext}",
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.music",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "P-12 uses microphone/audio-input access when you choose to record samples."
+      }
+    },
+    "dmg": {
+      "title": "P-12 v1.0"
+    }
+  }
+}
