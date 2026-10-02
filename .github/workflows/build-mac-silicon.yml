@@ -35,7 +35,7 @@ jobs:
       - name: Build Apple Silicon DMG
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-        run: npm run dist:mac:arm64
+        run: npm run dist:mac:arm64 -- --publish never
 
       - name: Show output
         run: find dist-mac-arm64 -maxdepth 2 -type f -print
