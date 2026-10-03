@@ -1,0 +1,33 @@
+name: P-12 Windows Installer Build
+on:
+  push:
+    branches:
+      - p12-windows-installer-build
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Recreate exact Windows source
+        shell: pwsh
+        run: |
+          $parts = Get-ChildItem p12_windows_payload\part*.txt | Sort-Object Name
+          $b64 = ($parts | ForEach-Object { Get-Content -Raw $_.FullName }) -join ''
+          $b64 = $b64 -replace '\\s',''
+          [IO.File]::WriteAllBytes('p12_source.zip',[Convert]::FromBase64String($b64))
+          Expand-Archive -Path p12_source.zip -DestinationPath winbuild -Force
+      - name: Install dependencies
+        working-directory: winbuild
+        run: npm install --no-audit --no-fund
+      - name: Build NSIS installer
+        working-directory: winbuild
+        run: npm run dist:win
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: P-12-v1.0-PAD-INSERT-BAKE-WINDOWS-INSTALLER
+          path: winbuild/dist-installer/*.exe
+          if-no-files-found: error
