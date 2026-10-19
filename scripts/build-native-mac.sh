@@ -16,7 +16,7 @@ mkdir -p native
 rm -rf 'native/P-12 VST Host.app'
 ditto "$host" 'native/P-12 VST Host.app'
 codesign --force --deep --sign - 'native/P-12 VST Host.app'
-lipo -verify_arch arm64 'native/P-12 VST Host.app/Contents/MacOS/P-12 VST Host'
+lipo 'native/P-12 VST Host.app/Contents/MacOS/P-12 VST Host' -verify_arch arm64
 fixture="$out/p12-test-gain_artefacts/Release/VST3/P12 Test Gain.vst3"
 test -d "$fixture"
 node scripts/test-vst3-host.cjs 'native/P-12 VST Host.app/Contents/MacOS/P-12 VST Host' "$fixture"
