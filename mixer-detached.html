@@ -1,0 +1,103 @@
+<!doctype html><html><head><meta charset="utf-8"><title>P-12 — Mixer 32</title><style id="original"></style><style>
+html,body{padding:0!important;min-height:0!important;box-sizing:border-box!important;display:block!important;margin:0!important;background:#17191b!important;overflow:hidden!important;width:100%!important;height:100%!important}
+/* A definite height at EVERY ancestor keeps scrollbars inside the native window. */
+#root{width:100%;height:100vh;height:100dvh;min-width:0;min-height:0;display:flex;overflow:hidden;box-sizing:border-box}
+#mixerWinBackdrop{position:relative!important;inset:auto!important;display:flex!important;flex:1 1 0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;padding:0!important;box-sizing:border-box!important;align-items:stretch!important;justify-content:stretch!important}
+#mixerWinBackdrop .mixerwin-panel{display:flex!important;flex-direction:column!important;flex:1 1 0!important;width:100%!important;max-width:none!important;min-width:0!important;min-height:0!important;max-height:none!important;height:100%!important;margin:0!important;box-sizing:border-box!important;resize:none!important}
+#mixerWinBackdrop .modal-header,#mixerWinBackdrop .mixer-zoom-toolbar{flex:0 0 auto;min-width:0}
+/* Flex uses the actual header + wrapped toolbar height, never a fixed subtraction. */
+#mixerWinBackdrop .mixerwin-scroll{flex:1 1 0!important;min-height:0!important;min-width:0!important;height:auto!important;max-height:none!important;width:100%!important;box-sizing:border-box!important;overflow-y:scroll!important;overflow-x:hidden!important;scrollbar-gutter:stable;overscroll-behavior:contain;touch-action:pan-y}
+#mixerWinBackdrop .mixerwin-row-scroll{width:100%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;overflow-x:scroll!important;overflow-y:auto!important;max-height:var(--p12-mixer-row-height,65vh)!important;scrollbar-gutter:stable;overscroll-behavior-x:contain;overscroll-behavior-y:auto;touch-action:pan-x pan-y}
+#mixerWinBackdrop .mixerwin-strips{width:max-content;min-width:100%;display:flex;align-items:stretch;zoom:var(--p12-mixer-zoom,1)}
+#mixerWinBackdrop .mpcstrip{flex:0 0 200px!important;min-width:200px!important;width:200px!important;box-sizing:border-box!important;font-size:13px!important;max-height:none!important;overflow:visible!important}
+#mixerWinBackdrop .mpcstrip-master{position:sticky!important;left:0!important;z-index:5!important;background:#26211a!important}
+#mixerWinBackdrop .mpc-insert-select{font-size:13px!important;min-height:32px!important;max-width:none!important;width:100%!important}
+#mixerWinBackdrop .mpc-insert-edit,#mixerWinBackdrop .mpc-channel-id,#mixerWinBackdrop .mpc-control-divider,#mixerWinBackdrop .mpc-inserts-hdr,#mixerWinBackdrop .mpc-mini-label{font-size:12px!important}
+#mixerWinBackdrop .mpc-insert-row{min-height:36px!important}
+#mixerWinBackdrop .mixerwin-scroll::-webkit-scrollbar,#mixerWinBackdrop .mixerwin-row-scroll::-webkit-scrollbar{width:16px;height:16px}
+#mixerWinBackdrop .mixerwin-scroll::-webkit-scrollbar-thumb,#mixerWinBackdrop .mixerwin-row-scroll::-webkit-scrollbar-thumb{background:#788087;border:3px solid #25292d;border-radius:8px}
+#mixerWinBackdrop .mixerwin-scroll::-webkit-scrollbar-track,#mixerWinBackdrop .mixerwin-row-scroll::-webkit-scrollbar-track{background:#25292d}
+</style></head><body><div id="root"></div><script>
+'use strict';const api=window.electronAPI,root=document.getElementById('root');
+let interacting=false,deferred=null,drag=null,zoom=1,finishTimer=null;
+function fitRows(){const workspace=root.querySelector('.mixerwin-scroll');if(workspace)root.style.setProperty('--p12-mixer-row-height',Math.max(160,workspace.clientHeight-48)+'px');}
+new ResizeObserver(fitRows).observe(root);
+function scrollElements(){return [...root.querySelectorAll('.mixerwin-scroll,.mixerwin-row-scroll,.p12-submix-card')];}
+function scrollKey(el,index){return el.id||el.querySelector('[id]')?.id||el.className+'-'+index;}
+function setZoom(value){
+ const rows=scrollElements(),anchors=rows.map(el=>({el,top:el.scrollTop,left:el.scrollLeft}));
+ const old=zoom;zoom=Math.max(.6,Math.min(2.5,value));
+ root.querySelector('#mixerWinBackdrop')?.style.setProperty('--p12-mixer-zoom',String(zoom));
+ const label=root.querySelector('#mixerZoomLabel');if(label)label.textContent=Math.round(zoom*100)+'%';
+ anchors.forEach(({el,top,left})=>{el.scrollTop=top;el.scrollLeft=left*zoom/old;});
+}
+function goToSection(id){
+ const workspace=root.querySelector('.mixerwin-scroll'),pads=root.querySelector('#mixerwinStrips')?.parentElement;
+ if(!workspace||!pads)return;
+ if(id==='mixerGoTracks'){
+  const section=root.querySelector('#mixerTracksSection');
+  workspace.scrollTop+=section.getBoundingClientRect().top-workspace.getBoundingClientRect().top;
+  const row=root.querySelector('#mixerwinTrackStrips')?.parentElement;if(row)row.scrollLeft=0;
+ }else{
+  workspace.scrollTop=0;workspace.scrollLeft=0;pads.scrollTop=0;
+  const master=root.querySelector('.mpcstrip-master'),firstPad=root.querySelector('#mixerwinStrips .mpcstrip:not(.mpcstrip-master)');
+  pads.scrollLeft=id==='mixerGoEnd'?pads.scrollWidth:id==='mixerGoPads'&&firstPad?Math.max(0,firstPad.offsetLeft-(master?.offsetWidth||0)):0;
+ }
+}
+function apply(s){
+ if(interacting||root.contains(document.activeElement)&&document.activeElement.matches('select')){deferred=s;return;}
+ const scroll=new Map(scrollElements().map((el,i)=>[scrollKey(el,i),{top:el.scrollTop,left:el.scrollLeft}]));
+ document.getElementById('original').textContent=s.styles;root.innerHTML=s.html;root.querySelector('#mixerWinBackdrop')?.style.setProperty('--p12-mixer-zoom',String(zoom));
+ root.querySelectorAll('button').forEach(x=>x.type='button');
+ scrollElements().forEach((el,i)=>{const saved=scroll.get(scrollKey(el,i));el.scrollTop=saved?.top||0;el.scrollLeft=saved?.left||0;});
+ const label=root.querySelector('#mixerZoomLabel');if(label)label.textContent=Math.round(zoom*100)+'%';
+ fitRows();
+}
+function send(el,type,extra={}){if(el?.dataset.p12MixerControl)api.sendMixerAction({control:el.dataset.p12MixerControl,type,...extra});}
+api.onMixerState(apply);api.sendMixerAction({type:'ready'});
+root.addEventListener('click',e=>{
+ const id=e.target.closest('[id]')?.id;
+ if(id==='mixer32StartBtn'||id==='mixer32StopBtn'){api.sendMixerAction({type:'transport',command:id==='mixer32StartBtn'?'play':'stop'});return;}
+ if(['mixerZoomIn','mixerZoomOut','mixerZoomReset'].includes(id)){setZoom(id==='mixerZoomReset'?1:zoom*(id==='mixerZoomIn'?1.2:1/1.2));return;}
+ if(['mixerGoMaster','mixerGoPads','mixerGoTracks','mixerGoEnd'].includes(id)){goToSection(id);return;}
+ if(e.target.matches('.mval')){const knob=e.target.parentElement.querySelector('[data-p12-knob-value]');if(knob){const value=window.prompt('Value',knob.dataset.p12KnobValue);if(value!==null&&Number.isFinite(Number(value)))send(knob,'knob',{value:Number(value)});return;}}
+ const el=e.target.closest('[data-p12-mixer-control]');if(el?.matches('input,select,.knob,.mpc-send-knob,.mpc-pan-knob'))return;send(el,'click',{focusMain:el?.classList.contains('mpc-insert-edit')});});
+for(const type of ['input','change'])root.addEventListener(type,e=>{
+ const el=e.target;
+ if(el.matches('[data-db-fader]')){
+  const db=Number(el.value),text=db<=-61?'−∞ dB':(db>0?'+':'')+db.toFixed(1)+' dB';el.title=text;
+  const readout=el.closest('.mpcstrip')?.querySelector('.mpc-fader-readout')||el.parentElement.querySelector('span');if(readout)readout.textContent=text;
+ }
+ send(el,type,{value:el.value,checked:el.type==='checkbox'?el.checked:undefined});
+ if(type==='change'&&el.matches('select')){el.blur();finish();}
+});
+root.addEventListener('dblclick',e=>{if(e.target.matches('[data-db-fader]')){e.target.value=0;e.target.dispatchEvent(new Event('input',{bubbles:true}));}});
+root.addEventListener('pointerdown',e=>{clearTimeout(finishTimer);interacting=true;const el=e.target.closest('.knob,.mpc-send-knob,.mpc-pan-knob');if(el){drag={el,y:e.clientY,value:Number(el.dataset.p12KnobValue)};el.setPointerCapture(e.pointerId);e.preventDefault();}});
+root.addEventListener('pointermove',e=>{if(!drag)return;const el=drag.el,min=Number(el.dataset.p12KnobMin),max=Number(el.dataset.p12KnobMax),step=Number(el.dataset.p12KnobStep);let value=Math.max(min,Math.min(max,drag.value+(drag.y-e.clientY)*(max-min)/140));if(step)value=Math.round(value/step)*step;send(el,'knob',{value});el.style.transform='rotate('+(-135+(value-min)/(max-min)*270)+'deg)';});
+function finish(){drag=null;clearTimeout(finishTimer);finishTimer=setTimeout(()=>{interacting=false;if(deferred){const s=deferred;deferred=null;apply(s);}},50);}
+root.addEventListener('focusout',()=>{if(!interacting&&deferred)finish();});
+window.addEventListener('pointerup',finish);window.addEventListener('pointercancel',finish);window.addEventListener('blur',finish);
+window.addEventListener('keydown',e=>{if(e.key==='Escape')api.sendMixerAction({type:'click',control:root.querySelector('#mixerWinCloseBtn')?.dataset.p12MixerControl});});
+// The project renderer owns metering in both engines. Only small level packets
+// cross IPC; meter frames never rebuild the mixer or touch transport.
+api.onMixerMeters?.(packet=>{
+ for(const m of packet?.meters||[]){
+  const cover=root.querySelector('.mpcstrip[data-native-kind="'+m.kind+'"][data-native-index="'+m.index+'"] .cover');
+  if(cover){cover.style.height=m.height;cover.title=m.title;}
+  if(Array.isArray(m.spectrum)){
+   const canvas=root.querySelector('.mpcstrip[data-native-kind="'+m.kind+'"][data-native-index="'+m.index+'"] .mpc-spectrum');
+   if(canvas){const c=canvas.getContext('2d'),w=canvas.width,h=canvas.height;c.clearRect(0,0,w,h);m.spectrum.forEach((value,i)=>{const v=Math.max(0,Math.min(1,value/255)),bw=w/m.spectrum.length;c.fillStyle='hsl('+(130-v*130)+',85%,50%)';c.fillRect(i*bw+1,h-v*h,Math.max(1,bw-2),v*h);});}
+  }
+ }
+});
+root.addEventListener('wheel',e=>{
+ if(e.ctrlKey||e.metaKey){e.preventDefault();setZoom(zoom*(e.deltaY<0?1.1:.9));return;}
+ const row=e.target.closest('.mixerwin-row-scroll');
+ if(row&&(e.shiftKey||Math.abs(e.deltaX)>Math.abs(e.deltaY))){
+  e.preventDefault();const unit=e.deltaMode===1?20:e.deltaMode===2?row.clientWidth:1;
+  row.scrollLeft+=(e.shiftKey?(e.deltaY||e.deltaX):e.deltaX)*unit;
+ }
+ // Ordinary vertical wheel/touch scroll reaches the workspace, not a hidden strip.
+},{passive:false});
+root.addEventListener('submit' ,e=>e.preventDefault());
+</script></body></html>

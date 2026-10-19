@@ -1,12 +1,14 @@
 {
   "name": "p12-mac-silicon",
-  "version": "1.0.0",
+  "version": "1.0.15",
   "private": true,
-  "description": "P-12 v1.0 for Apple Silicon macOS, without native VST hosting",
+  "description": "P-12 FULL15 Apple Silicon sampler/sequencer with native JUCE VST3 hosting",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist:mac:arm64": "electron-builder --mac dmg zip --arm64 --config.directories.output=dist-mac-arm64"
+    "dist:mac:arm64": "npm test && npm run build:native:mac && electron-builder --mac dmg zip --arm64 --publish never --config.directories.output=dist-mac-arm64",
+    "test": "node scripts/verify-distribution.cjs",
+    "build:native:mac": "bash scripts/build-native-mac.sh"
   },
   "devDependencies": {
     "electron": "44.2.0",
@@ -17,9 +19,18 @@
     "productName": "P-12 v1.0",
     "files": [
       "P-12.html",
-      "main.js"
+      "piano-detached.html",
+      "playlist-detached.html",
+      "main.js",
+      "preload.js",
+      "vendor/jszip.min.js",
+      "vendor/LICENSE-JSZIP-MIT.txt",
+      "mixer-detached.html",
+      "transport-controller.cjs",
+      "recovery-worker.cjs",
+      "build/icon.png"
     ],
-    "artifactName": "P-12-v1.0-Mac-Silicon-${arch}.${ext}",
+    "artifactName": "P-12-FULL15-Mac-Silicon-${version}-${arch}.${ext}",
     "mac": {
       "target": [
         "dmg",
@@ -30,10 +41,21 @@
       "gatekeeperAssess": false,
       "extendInfo": {
         "NSMicrophoneUsageDescription": "P-12 uses microphone/audio-input access when you choose to record samples."
-      }
+      },
+      "icon": "build/icon.png",
+      "identity": "-"
     },
     "dmg": {
       "title": "P-12 v1.0"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "native/P-12 VST Host.app",
+        "to": "native/P-12 VST Host.app",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
   }
 }

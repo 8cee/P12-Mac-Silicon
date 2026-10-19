@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>P-12 — Playlist / Arrangement</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#242629;color:#ece9df;font:14px Arial,sans-serif;padding:20px}h1{font-size:18px;letter-spacing:2px;margin:0 0 16px}.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px}button{background:linear-gradient(#e8e4d7,#b4afa4);color:#202020;border:1px solid #111;border-radius:4px;padding:9px 13px;font-weight:bold;cursor:pointer}button:hover{filter:brightness(1.1)}select,input{background:#101923;color:#fff;border:1px solid #63758a;border-radius:4px;padding:7px;font:inherit}input{width:76px}#timeline{display:flex;gap:10px;overflow-x:auto;padding:5px 3px 18px;min-height:210px}.clip{min-width:220px;flex:0 0 220px;background:#30353a;border:1px solid #65849a;border-radius:7px;padding:14px}.clip h2{font-size:15px;margin:0 0 14px;color:#f3b044}.clip label{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0}.clip .source{font-size:12px;color:#c3c6c8;margin:12px 0}.clip .actions{display:flex;gap:5px;justify-content:space-between}.clip .actions button{padding:7px}#total{color:#f3b044;margin:16px 0}.hint{color:#c3c6c8;font-size:13px;line-height:1.5}.empty{padding:35px;color:#c3c6c8;border:1px dashed #63758a;flex:1}
+</style></head><body>
+<h1>PLAYLIST — ARRANGEMENT</h1>
+<div class="toolbar"><label>Add sequence <select id="addSequence" aria-label="Sequence to add"></select></label><button id="add">+ SEQ</button><button id="clear">CLEAR</button><button id="play">▶ SONG</button><button id="stop">■ STOP</button></div>
+<div id="timeline"></div><div id="total"></div>
+<p class="hint">Each entry has its own start bar and length. Reuse the same sequence for 8 bars, then 1 bar — the original sequence stays unchanged. Drag entries or use the arrows to reorder. Arrangement edits take effect on the next SONG start.</p>
+<script>
+(()=>{
+const api=window.electronAPI,root=document.getElementById('timeline'),addSequence=document.getElementById('addSequence');let snapshot=null,pending=null;
+function send(type,data={}){api?.sendPlaylistAction?.({type,revision:snapshot?.revision,...data});}
+function render(s){
+ if(!s||!Array.isArray(s.clips)||!Array.isArray(s.sequences))return;
+ const active=document.activeElement;
+ if(active&&root.contains(active)&&active.matches('input,select')){pending=s;return;}
+ snapshot=s;pending=null;const selected=addSequence.value;
+ addSequence.replaceChildren(...s.sequences.map(seq=>new Option(String(seq.number).padStart(2,'0')+' ('+seq.bars+' bars)',String(seq.number))));
+ if([...addSequence.options].some(o=>o.value===selected))addSequence.value=selected;
+ root.replaceChildren();let offset=0;
+ s.clips.forEach((clip,index)=>{
+  const el=document.createElement('section');el.className='clip';el.dataset.index=index;el.draggable=true;
+  const heading=document.createElement('h2');heading.textContent='PART '+(index+1)+' · BAR '+(offset+1);el.append(heading);
+  const pick=document.createElement('select');pick.setAttribute('aria-label','Sequence for part '+(index+1));
+  pick.append(...s.sequences.map(x=>new Option(String(x.number).padStart(2,'0'),String(x.number))));pick.value=String(clip.sequence);
+  const row=document.createElement('label');row.append('SEQUENCE',pick);el.append(row);
+  pick.onchange=()=>{send('sequence',{index,sequence:Number(pick.value)});pick.blur();};
+  [['FROM BAR',clip.startBar+1,clip.originalBars,'start'],['LENGTH (BARS)',clip.bars,clip.originalBars-clip.startBar,'bars']].forEach(([name,value,max,key])=>{
+   const input=document.createElement('input');input.type='number';input.min='1';input.max=String(max);input.step='1';input.value=String(value);input.setAttribute('aria-label',name+' for part '+(index+1));
+   input.onchange=()=>{const v=Math.max(1,Math.min(max,Math.trunc(Number(input.value)||1)));send('range',{index,startBar:key==='start'?v-1:clip.startBar,bars:key==='bars'?v:clip.bars});input.blur();};
+   const line=document.createElement('label');line.append(name,input);el.append(line);
+  });
+  const source=document.createElement('div');source.className='source';source.textContent='Original sequence: '+clip.originalBars+' bars';el.append(source);
+  const actions=document.createElement('div');actions.className='actions';
+  for(const [label,type,to] of [['←','move',index-1],['REMOVE','remove',null],['→','move',index+1]]){const button=document.createElement('button');button.textContent=label;button.disabled=type==='move'&&(to<0||to>=s.clips.length);button.onclick=()=>send(type,{index,to});actions.append(button);}
+  el.append(actions);el.ondragstart=e=>{if(e.target.closest('input,select,button')){e.preventDefault();return;}e.dataTransfer.setData('text/p12-song-clip',String(index));};
+  el.ondragover=e=>e.preventDefault();el.ondrop=e=>{e.preventDefault();const value=e.dataTransfer.getData('text/p12-song-clip');if(value!=='')send('move',{index:Number(value),to:index});};
+  root.append(el);offset+=clip.bars;
+ });
+ if(!s.clips.length){const empty=document.createElement('div');empty.className='empty';empty.textContent='Choose a sequence above and click + SEQ to begin.';root.append(empty);}
+ document.getElementById('total').textContent=s.clips.length+' parts · '+offset+' bars';
+}
+root.addEventListener('focusout',()=>setTimeout(()=>{if(pending)render(pending);},0));
+document.getElementById('add').onclick=()=>send('add',{sequence:Number(addSequence.value)});
+document.getElementById('clear').onclick=()=>send('clear');document.getElementById('play').onclick=()=>send('play');document.getElementById('stop').onclick=()=>send('stop');
+api?.onPlaylistState?.(render);send('ready');
+})();
+</script></body></html>
