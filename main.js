@@ -198,6 +198,7 @@ if (process.platform === 'win32') app.setAppUserModelId('com.p12.sampler');
 
 let mainWindow = null;
 let nativeHost = null;
+let p12ShuttingDown = false;
 let nativeHostPath = null;
 let nativeHostFailed = null;
 let nativeHostStdoutBuffer = '';
@@ -438,6 +439,7 @@ function findNativeHost() {
 }
 
 function ensureNativeHost() {
+  if(p12ShuttingDown)return {ok:false,message:'P-12 is shutting down.'};
   if (nativeHost && !nativeHost.killed) return { ok: true, path: nativeHostPath };
   nativeHostPath = findNativeHost();
   if (!nativeHostPath) {
@@ -713,6 +715,7 @@ app.whenReady().then(() => {
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 app.on('window-all-closed', () => { p12Log('window-all-closed');p12Diag('APP','window-all-closed'); if (process.platform !== 'darwin') app.quit(); });
 app.on('before-quit', () => {
+  p12ShuttingDown = true;
   p12Diag('APP','before-quit');
   if (p12AudioDebugStream) {p12AudioDebugStream.end();p12AudioDebugStream=null;}
   failAllNativePending('P-12 is shutting down.');
