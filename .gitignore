@@ -1,0 +1,6 @@
+node_modules/
+dist-mac-arm64/
+*.log
+.DS_Store
+native/
+native-host/build/

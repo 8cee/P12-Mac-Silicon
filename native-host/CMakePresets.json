@@ -1,0 +1,31 @@
+{
+  "version": 5,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "win64-vst3",
+      "displayName": "Windows x64 - VST3",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/win64-vst3",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Release",
+        "P12_ENABLE_VST2": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "win64-vst3-release",
+      "configurePreset": "win64-vst3",
+      "configuration": "Release",
+      "targets": [
+        "p12-vst-host"
+      ]
+    }
+  ]
+}
