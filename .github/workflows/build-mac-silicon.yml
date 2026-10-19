@@ -2,7 +2,7 @@ name: Build P-12 Mac Silicon DMG
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, codex/mac-silicon-vst3-full15 ]
   workflow_dispatch:
 
 permissions:
